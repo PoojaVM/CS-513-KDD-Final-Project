@@ -38,6 +38,7 @@ The project aims to predict the prices of real estate in New York City using the
    ```
    python main.py
    ```
+4. `main.ipynb` can also be used to run the code. It also views the output of the final run of the code.
 
 ### Results
 - Write results here
