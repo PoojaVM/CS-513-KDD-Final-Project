@@ -20,8 +20,9 @@ df.info()
 # %%
 # Clean dataset
 
-# Drop unnamed serial name column which does not seem to give significant information
-df.drop('Unnamed: 0', axis=1, inplace=True)
+# Drop ADDRESS and Unnamed: 0 feature which is just a serial number
+df.drop(["ADDRESS", "Unnamed: 0"], axis=1, inplace=True)
+
 
 # Check and drop columns where all cells are empty or -
 df = df.applymap(lambda x: pd.NA if str(x).strip() in ['-', ''] else x)
@@ -56,16 +57,31 @@ print(categorical_columns, '\n')
 
 # %%
 # Filter out categorical features from 'categorical_columns' if they are truly useful in categorical sense
-categorical_columns = ['BOROUGH', 'TAX CLASS AT PRESENT', 'TAX CLASS AT TIME OF SALE', 'BUILDING CLASS AT TIME OF SALE', 'BUILDING CLASS CATEGORY']
+categorical_columns = [
+    'BOROUGH',
+    'NEIGHBORHOOD',
+    'TAX CLASS AT PRESENT',
+    'BUILDING CLASS CATEGORY',
+    'BUILDING CLASS AT PRESENT',
+    'TAX CLASS AT TIME OF SALE',
+    'BUILDING CLASS AT TIME OF SALE'
+]
 
 for col in categorical_columns:
+    # Convert to categorical data type
     df[col] = df[col].astype('category')
+    # Do label encoding
+    df[col] = df[col].cat.codes
 
-# Convert other feature types as and where required
-df['SALE DATE'] = pd.to_datetime(df['SALE DATE'], errors='coerce')
+# Convert other feature data types to numeric wherever suitable
 df['SALE PRICE'] = pd.to_numeric(df['SALE PRICE'])
 df['LAND SQUARE FEET'] = pd.to_numeric(df['LAND SQUARE FEET'], errors='coerce')
 df['GROSS SQUARE FEET']= pd.to_numeric(df['GROSS SQUARE FEET'], errors='coerce')
+
+# Convert SALE DATE to datetime and extact year
+df['SALE DATE'] = pd.to_datetime(df['SALE DATE'], errors='coerce')
+# df['SALE YEAR'] = df['SALE DATE'].dt.year
+df["SALE DATE"] = pd.DatetimeIndex(df["SALE DATE"]).year
 
 
 # %%
@@ -137,8 +153,9 @@ print(
 )
 
 
-# Delete the APARTMENT NUMBER column
+# Delete the APARTMENT NUMBER since 77% of the values are missing and it is not a useful feature
 df.drop("APARTMENT NUMBER", axis=1, inplace=True)
+
 
 # Remove rows with missing values in TAX CLASS AT PRESENT and BUILDING CLASS AT PRESENT
 df.dropna(subset=["TAX CLASS AT PRESENT", "BUILDING CLASS AT PRESENT"], inplace=True)
@@ -204,46 +221,21 @@ df_no_impute.dropna(inplace=True)
 # show_missing_values(df_knn_impute)
 
 # %%
-for col in [
-    "BOROUGH",
-    "NEIGHBORHOOD",
-    "BUILDING CLASS CATEGORY",
-    "TAX CLASS AT PRESENT",
-    "BUILDING CLASS AT PRESENT",
-    "BUILDING CLASS AT TIME OF SALE",
-]:
-    df_median_impute[col] = df_median_impute[col].astype("category")
-    df_mean_inpute[col] = df_mean_inpute[col].astype("category")
-    df_knn_impute[col] = df_knn_impute[col].astype("category")
-    df_no_impute[col] = df_no_impute[col].astype("category")
-    # label encoding
-    df_median_impute[col] = df_median_impute[col].cat.codes
-    df_mean_inpute[col] = df_mean_inpute[col].cat.codes
-    df_knn_impute[col] = df_knn_impute[col].cat.codes
-    df_no_impute[col] = df_no_impute[col].cat.codes
-
-# convert sale date column values to year only
-df_median_impute["SALE DATE"] = pd.DatetimeIndex(df_median_impute["SALE DATE"]).year
-df_mean_inpute["SALE DATE"] = pd.DatetimeIndex(df_mean_inpute["SALE DATE"]).year
-df_knn_impute["SALE DATE"] = pd.DatetimeIndex(df_knn_impute["SALE DATE"]).year
-df_no_impute["SALE DATE"] = pd.DatetimeIndex(df_no_impute["SALE DATE"]).year
-
-# drop address column
-df_median_impute.drop("ADDRESS", axis=1, inplace=True)
-df_mean_inpute.drop("ADDRESS", axis=1, inplace=True)
-df_knn_impute.drop("ADDRESS", axis=1, inplace=True)
-df_no_impute.drop("ADDRESS", axis=1, inplace=True)
-
-# %%
 # Model building
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
-
 import xgboost as xgb
-
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.utils import to_categorical
+
 
 
 def plot_confusion_matrix(cm, title):
@@ -268,19 +260,16 @@ def get_predictions(model, X_train, X_test, y_train, y_test):
     # Make predictions on the test set
     return model.predict(X_test)
 
-
-def use_knn_model(dataframe):
-    # Create a KNN model with default hyperparameters
-    knn = KNeighborsClassifier()
-
+# Return optimal k
+def get_optimal_k(dataframe):
     # Get the feature and target columns
     X = dataframe.drop("SALE PRICE", axis=1)
     y = dataframe["SALE PRICE"]
 
+    # Split the data into training and test sets
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=42
     )
-
     k_values = range(1, 21)
     accuracy_map = dict()
 
@@ -300,216 +289,64 @@ def use_knn_model(dataframe):
 
     # Get optimal k
     optimal_k = max(accuracy_map, key=accuracy_map.get)
+    return optimal_k
 
-    # Print the optimal k
-    print("The optimal number of neighbors is {}".format(optimal_k))
+# Return model based on type passed
+def get_model(model_type, dataframe):
+    if model_type == "gaussian_nb":
+        return GaussianNB()
+    elif model_type == "decision_tree":
+        return DecisionTreeClassifier()
+    elif model_type == "cart_5":
+        return DecisionTreeClassifier(max_depth=5)
+    elif model_type == "random_forest":
+        return RandomForestClassifier()
+    elif model_type == "svm":
+        return SVC()
+    elif model_type == "logistic_regression":
+        return LogisticRegression()
+    elif model_type == "knn":
+        # Note for testing - Uncomment below code to get optimal k. It has been commented to avoid running it everytime.
+        # optimal_k = get_optimal_k(dataframe)
+        # Above function returns optimal k = 8
+        optimal_k = 8
+        print("The optimal number of neighbors is {}".format(optimal_k))
+        return KNeighborsClassifier(n_neighbors=optimal_k)
+    # elif model_type == "xg_boost":
+    #     return xgb.XGBClassifier()
+    # elif model_type == "sequential_dense":
+    #     return Sequential()
+    else:
+        return None
 
-    # Create a KNN model with optimal number of neighbors
-    knn_optimal = KNeighborsClassifier(n_neighbors=optimal_k)
-
-    # Get the feature and target columns
-    X = dataframe.drop("SALE PRICE", axis=1)
-    y = dataframe["SALE PRICE"]
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.3, random_state=42
-    )
-
-    # Get predictions using optimal k
-    target_pred = get_predictions(knn_optimal, X_train, X_test, y_train, y_test)
-
-    # Get the confusion matrix
-    cm = confusion_matrix(y_test, target_pred)
-
-    # Plot the confusion matrix
-    plot_confusion_matrix(cm, "Confusion Matrix for optimal k = " + str(optimal_k))
-
-    print("Confusion Matrix for optimal k = " + str(optimal_k))
-
-    # Print the classification report
-    print(classification_report(y_test, target_pred))
-
-    # Print the accuracy
-    print("Accuracy:", accuracy_score(y_test, target_pred))
-
-
-def use_gaussian_nb_model(dataframe):
-    # Create a GaussianNB model
-    gaussian_nb = GaussianNB()
+# Write a common function to train and test the different models
+def train_and_test_model(model_type, dataframe):
+    # Get the model
+    model = get_model(model_type, dataframe)
 
     # Get the feature and target columns
     X = dataframe.drop("SALE PRICE", axis=1)
     y = dataframe["SALE PRICE"]
 
+    # Split the data into training and test sets
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=42
     )
-
+    
     # Get predictions
-    target_pred = get_predictions(gaussian_nb, X_train, X_test, y_train, y_test)
+    target_pred = get_predictions(model, X_train, X_test, y_train, y_test)
 
     # Get the confusion matrix
     cm = confusion_matrix(y_test, target_pred)
 
     # Plot the confusion matrix
-    plot_confusion_matrix(cm, "Confusion Matrix for GaussianNB")
+    plot_confusion_matrix(cm, "Confusion Matrix for " + model_type)
 
     # Print the classification report
     print(classification_report(y_test, target_pred))
 
     # Print the accuracy
     print("Accuracy:", accuracy_score(y_test, target_pred))
-
-
-def use_decision_tree_model(dataframe):
-    from sklearn.tree import DecisionTreeClassifier
-
-    # Create a DecisionTreeClassifier model
-    decision_tree = DecisionTreeClassifier()
-
-    # Get the feature and target columns
-    X = dataframe.drop("SALE PRICE", axis=1)
-    y = dataframe["SALE PRICE"]
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.3, random_state=42
-    )
-
-    # Get predictions
-    target_pred = get_predictions(decision_tree, X_train, X_test, y_train, y_test)
-
-    # Get the confusion matrix
-    cm = confusion_matrix(y_test, target_pred)
-
-    # Plot the confusion matrix
-    plot_confusion_matrix(cm, "Confusion Matrix for DecisionTreeClassifier")
-
-    # Print the classification report
-    print(classification_report(y_test, target_pred))
-
-    # Print the accuracy
-    print("Accuracy:", accuracy_score(y_test, target_pred))
-
-
-def use_cart_5_model(dataframe):
-    from sklearn.tree import DecisionTreeClassifier
-
-    # Create a DecisionTreeClassifier model
-    decision_tree = DecisionTreeClassifier(max_depth=5)
-
-    # Get the feature and target columns
-    X = dataframe.drop("SALE PRICE", axis=1)
-    y = dataframe["SALE PRICE"]
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.3, random_state=42
-    )
-
-    # Get predictions
-    target_pred = get_predictions(decision_tree, X_train, X_test, y_train, y_test)
-
-    # Get the confusion matrix
-    cm = confusion_matrix(y_test, target_pred)
-
-    # Plot the confusion matrix
-    plot_confusion_matrix(cm, "Confusion Matrix for CART-5.0")
-
-    # Print the classification report
-    print(classification_report(y_test, target_pred))
-
-    # Print the accuracy
-    print("Accuracy:", accuracy_score(y_test, target_pred))
-
-
-def use_random_forest_model(dataframe):
-    from sklearn.ensemble import RandomForestClassifier
-
-    # Create a RandomForestClassifier model
-    random_forest = RandomForestClassifier()
-
-    # Get the feature and target columns
-    X = dataframe.drop("SALE PRICE", axis=1)
-    y = dataframe["SALE PRICE"]
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.3, random_state=42
-    )
-
-    # Get predictions
-    target_pred = get_predictions(random_forest, X_train, X_test, y_train, y_test)
-
-    # Get the confusion matrix
-    cm = confusion_matrix(y_test, target_pred)
-
-    # Plot the confusion matrix
-    plot_confusion_matrix(cm, "Confusion Matrix for RandomForestClassifier")
-
-    # Print the classification report
-    print(classification_report(y_test, target_pred))
-
-    # Print the accuracy
-    print("Accuracy:", accuracy_score(y_test, target_pred))
-
-
-def use_svm_model(dataframe):
-    from sklearn.svm import SVC
-
-    # Create a SVC model
-    svc = SVC()
-
-    # Get the feature and target columns
-    X = dataframe.drop("SALE PRICE", axis=1)
-    y = dataframe["SALE PRICE"]
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.3, random_state=42
-    )
-
-    # Get predictions
-    target_pred = get_predictions(svc, X_train, X_test, y_train, y_test)
-
-    # Get the confusion matrix
-    cm = confusion_matrix(y_test, target_pred)
-
-    # Plot the confusion matrix
-    plot_confusion_matrix(cm, "Confusion Matrix for SVC")
-
-    # Print the classification report
-    print(classification_report(y_test, target_pred))
-
-    # Print the accuracy
-    print("Accuracy:", accuracy_score(y_test, target_pred))
-
-
-def use_logistic_regression_model(dataframe):
-    from sklearn.linear_model import LogisticRegression
-
-    # Create a LogisticRegression model
-    logistic_regression = LogisticRegression()
-
-    # Get the feature and target columns
-    X = dataframe.drop("SALE PRICE", axis=1)
-    y = dataframe["SALE PRICE"]
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.3, random_state=42
-    )
-
-    # Get predictions
-    target_pred = get_predictions(logistic_regression, X_train, X_test, y_train, y_test)
-
-    # Get the confusion matrix
-    cm = confusion_matrix(y_test, target_pred)
-
-    # Plot the confusion matrix
-    plot_confusion_matrix(cm, "Confusion Matrix for LogisticRegression")
-
-    # Print the classification report
-    print(classification_report(y_test, target_pred))
-
-    # Print the accuracy
-    print("Accuracy:", accuracy_score(y_test, target_pred))
-
 
 def use_xg_boost_model(dataframe):
     # Initialize the label encoder for the target variable
@@ -524,8 +361,7 @@ def use_xg_boost_model(dataframe):
     # Identify categorical columns
     categorical_cols = df.select_dtypes(include=["category"]).columns
 
-    # One-hot encode categorical columns
-    one_hot_encoder = OneHotEncoder()
+    # Use pd.get_dummies() to create dummy variables for categorical columns
     df = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
 
     # Split the data into features and target
@@ -558,11 +394,6 @@ def use_xg_boost_model(dataframe):
 
 
 def use_sequential_dense_modal(dataframe):
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import Dense
-    from sklearn.preprocessing import StandardScaler
-    from tensorflow.keras.utils import to_categorical
-    from sklearn.model_selection import train_test_split
 
     # Get the feature and target columns
     X = dataframe.drop("SALE PRICE", axis=1)
@@ -617,32 +448,32 @@ for df_key in df_map.keys():
     df_item = df_map[df_key]
 
     print("KNN")
-    use_knn_model(df_item)
+    train_and_test_model("knn", df_item)
     print("\n")
 
     print("Gaussian NB")
-    use_gaussian_nb_model(df_item)
+    train_and_test_model("gaussian_nb", df_item)
     print("\n")
 
     print("Decision Tree")
-    use_decision_tree_model(df_item)
+    train_and_test_model("decision_tree", df_item)
     print("\n")
 
     print("CART 5")
-    use_cart_5_model(df_item)
+    train_and_test_model("cart_5", df_item)
     print("\n")
 
     print("Random Forest")
-    use_random_forest_model(df_item)
+    train_and_test_model("random_forest", df_item)
     print("\n")
 
     print("SVM")
-    use_svm_model(df_item)
+    train_and_test_model("svm", df_item)
     print("\n")
 
 
     print("Logistic Regression")
-    use_logistic_regression_model(df_item)
+    train_and_test_model("logistic_regression", df_item)
     print("\n")
 
     print("XG Boost")
