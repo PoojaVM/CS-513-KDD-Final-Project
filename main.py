@@ -93,10 +93,29 @@ df['GROSS SQUARE FEET']= pd.to_numeric(df['GROSS SQUARE FEET'], errors='coerce')
 # # df['SALE YEAR'] = df['SALE DATE'].dt.year
 # df["SALE DATE"] = pd.DatetimeIndex(df["SALE DATE"]).year
 
+# Replace YEAR BUILT = 0 with mode value
+df['YEAR BUILT'] = df['YEAR BUILT'].replace(0, df['YEAR BUILT'].mode()[0])
+
+# Find number of SALE PRICE columns with 0 value
+print('Number of SALE PRICE columns with 0 value:', df[df['SALE PRICE'] == 0].shape[0])
+
+# Remove rows with SALE PRICE = 0
+df = df[df['SALE PRICE'] != 0]
+
+# Rows with SALE PRICE = 0 after cleanup
+print('Number of SALE PRICE columns with 0 value after cleanup:', df[df['SALE PRICE'] == 0].shape[0])
+
+
 # %%
 # Check if all features are appropriately set as per thier data types
 print("Data type of features:")
-# df.dtypes
+df.dtypes
+
+# %%
+
+# We tried to remove extreme values from SALE PRICE but it resulted in loss of data. So we decided to keep them.
+
+
 
 # %%
 # # Plot histogram for numerical data
