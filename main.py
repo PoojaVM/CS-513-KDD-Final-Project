@@ -22,7 +22,7 @@ df.info()
 
 # Drop Unnamed: 0 feature which is just a serial number
 # Drop ADDRESS and LOT features as it is not required for analysis.
-df.drop(["ADDRESS", "Unnamed: 0", "LOT"], axis=1, inplace=True)
+df.drop(["ADDRESS", "Unnamed: 0", "LOT", "SALE DATE"], axis=1, inplace=True)
 
 # Check and drop columns where all cells are empty or -
 df = df.applymap(lambda x: pd.NA if str(x).strip() in ['-', ''] else x)
@@ -88,10 +88,10 @@ df['SALE PRICE'] = pd.to_numeric(df['SALE PRICE'])
 df['LAND SQUARE FEET'] = pd.to_numeric(df['LAND SQUARE FEET'], errors='coerce')
 df['GROSS SQUARE FEET']= pd.to_numeric(df['GROSS SQUARE FEET'], errors='coerce')
 
-# Convert SALE DATE to datetime and extact year
-df['SALE DATE'] = pd.to_datetime(df['SALE DATE'], errors='coerce')
-# df['SALE YEAR'] = df['SALE DATE'].dt.year
-df["SALE DATE"] = pd.DatetimeIndex(df["SALE DATE"]).year
+# # Convert SALE DATE to datetime and extact year
+# df['SALE DATE'] = pd.to_datetime(df['SALE DATE'], errors='coerce')
+# # df['SALE YEAR'] = df['SALE DATE'].dt.year
+# df["SALE DATE"] = pd.DatetimeIndex(df["SALE DATE"]).year
 
 # %%
 # Check if all features are appropriately set as per thier data types
@@ -207,8 +207,6 @@ df["SALE PRICE"].describe()
 
 df.info()
 
-df["SALE PRICE"].value_counts()
-
 # %%
 # Check if LAND SQUARE FEET and GROSS SQUARE FEET are normally distributed
 
@@ -238,11 +236,18 @@ df_no_impute = df.copy()
 # Impute using median
 df_median_impute['LAND SQUARE FEET'] = df_median_impute['LAND SQUARE FEET'].fillna(df_median_impute['LAND SQUARE FEET'].median())
 df_median_impute['GROSS SQUARE FEET'] = df_median_impute['GROSS SQUARE FEET'].fillna(df_median_impute['GROSS SQUARE FEET'].median())
+# # do log1p transformation to make the data more normally distributed
+# df_median_impute['LAND SQUARE FEET'] = np.log1p(df_median_impute['LAND SQUARE FEET'])
+# df_median_impute['GROSS SQUARE FEET'] = np.log1p(df_median_impute['GROSS SQUARE FEET'])
+
 df_median_impute = kmeans_remove_outliers(df_median_impute)
 
 # Impute using mean
 df_mean_inpute['LAND SQUARE FEET'] = df_mean_inpute['LAND SQUARE FEET'].fillna(df_mean_inpute['LAND SQUARE FEET'].mean())
 df_mean_inpute['GROSS SQUARE FEET'] = df_mean_inpute['GROSS SQUARE FEET'].fillna(df_mean_inpute['GROSS SQUARE FEET'].mean())
+# # do log1p transformation to make the data more normally distributed
+# df_mean_inpute['LAND SQUARE FEET'] = np.log1p(df_mean_inpute['LAND SQUARE FEET'])
+# df_mean_inpute['GROSS SQUARE FEET'] = np.log1p(df_mean_inpute['GROSS SQUARE FEET'])
 df_mean_inpute = kmeans_remove_outliers(df_mean_inpute)
 
 # Impute using KNN
@@ -251,10 +256,16 @@ from sklearn.impute import KNNImputer
 imputer = KNNImputer(n_neighbors=5)
 df_knn_impute['LAND SQUARE FEET'] = imputer.fit_transform(df_knn_impute[['LAND SQUARE FEET']])
 df_knn_impute['GROSS SQUARE FEET'] = imputer.fit_transform(df_knn_impute[['GROSS SQUARE FEET']])
+# # do log1p transformation to make the data more normally distributed
+# df_knn_impute['LAND SQUARE FEET'] = np.log1p(df_knn_impute['LAND SQUARE FEET'])
+# df_knn_impute['GROSS SQUARE FEET'] = np.log1p(df_knn_impute['GROSS SQUARE FEET'])
 df_knn_impute = kmeans_remove_outliers(df_knn_impute)
 
 # Delete rows with missing values fir df_no_impute
 df_no_impute.dropna(inplace=True)
+# # do log1p transformation to make the data more normally distributed
+# df_no_impute['LAND SQUARE FEET'] = np.log1p(df_no_impute['LAND SQUARE FEET'])
+# df_no_impute['GROSS SQUARE FEET'] = np.log1p(df_no_impute['GROSS SQUARE FEET'])
 df_no_impute = kmeans_remove_outliers(df_no_impute)
 
 # %%
