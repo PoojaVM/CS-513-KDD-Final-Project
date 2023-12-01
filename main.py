@@ -20,9 +20,9 @@ df.info()
 # %%
 # Clean dataset
 
-# Drop ADDRESS and Unnamed: 0 feature which is just a serial number
-df.drop(["ADDRESS", "Unnamed: 0"], axis=1, inplace=True)
-
+# Drop Unnamed: 0 feature which is just a serial number
+# Drop ADDRESS and LOT features as it is not required for analysis.
+df.drop(["ADDRESS", "Unnamed: 0", "LOT"], axis=1, inplace=True)
 
 # Check and drop columns where all cells are empty or -
 df = df.applymap(lambda x: pd.NA if str(x).strip() in ['-', ''] else x)
@@ -39,8 +39,18 @@ df.head()
 
 
 # %%
+# Remove rows with total units is not equal to commercial units + residential units
+df = df[df["TOTAL UNITS"] == (df["COMMERCIAL UNITS"] + df["RESIDENTIAL UNITS"])]
+
+print(
+    "Rows with total units != commercial units + residential units:",
+    df[df["TOTAL UNITS"] != df["COMMERCIAL UNITS"] + df["RESIDENTIAL UNITS"]].shape[0],
+)
+
+print("\n")
+
 # Check data type of features
-print('Data type of features', df.dtypes)
+print("Data type of features", df.dtypes)
 
 # %%
 # Find categorical columns - columns with less than 10 unique values considered cateogrical for the purpose
@@ -64,7 +74,7 @@ categorical_columns = [
     'BUILDING CLASS CATEGORY',
     'BUILDING CLASS AT PRESENT',
     'TAX CLASS AT TIME OF SALE',
-    'BUILDING CLASS AT TIME OF SALE'
+    'BUILDING CLASS AT TIME OF SALE',
 ]
 
 for col in categorical_columns:
@@ -83,24 +93,23 @@ df['SALE DATE'] = pd.to_datetime(df['SALE DATE'], errors='coerce')
 # df['SALE YEAR'] = df['SALE DATE'].dt.year
 df["SALE DATE"] = pd.DatetimeIndex(df["SALE DATE"]).year
 
-
 # %%
 # Check if all features are appropriately set as per thier data types
-print('Data type of features:')
-df.dtypes
+print("Data type of features:")
+# df.dtypes
 
 # %%
 # # Plot histogram for numerical data
-for column in df.columns:
-    # Check if the column is numeric
-    if pd.api.types.is_numeric_dtype(df[column]):
-        # Plot a histogram for numeric data
-        plt.figure(figsize=(8, 4))
-        sns.histplot(df[column], kde=True)
-        plt.title(f"Histogram of {column}")
-        plt.xlabel(column)
-        plt.ylabel("Frequency")
-        plt.show()
+# for column in df.columns:
+#     # Check if the column is numeric
+#     if pd.api.types.is_numeric_dtype(df[column]):
+#         # Plot a histogram for numeric data
+#         plt.figure(figsize=(8, 4))
+#         sns.histplot(df[column], kde=True)
+#         plt.title(f"Histogram of {column}")
+#         plt.xlabel(column)
+#         plt.ylabel("Frequency")
+#         plt.show()
 
     # # Check if the column is categorical
     # elif pd.api.types.is_categorical_dtype(df[column]):
@@ -135,6 +144,9 @@ show_missing_values(df)
 
 # %%
 df.dtypes
+
+# get nunique values of zip code
+df['ZIP CODE'].nunique()
 
 # %% [markdown]
 # ## Treating Missing Values
@@ -514,8 +526,5 @@ for df_key in df_map.keys():
     print("Sequential Dense Model")
     use_sequential_dense_modal(df_item)
     print("\n\n")
-
-# %%
-use_sequential_dense_modal(df_median_impute)
 
 
