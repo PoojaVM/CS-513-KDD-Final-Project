@@ -1,1 +1,7 @@
+numpy
 pandas
+seaborn
+xgboost
+sklearn
+matplotlib
+tensorflow
