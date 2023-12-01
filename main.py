@@ -142,6 +142,9 @@ df.dtypes
 # %%
 # Treating missing values
 
+# Cateogorical values for SALE PRICE
+SALE_PRICE_LABELS = ["Low", "Medium", "High", "Very High"]
+
 # Remove rows with missing or 0 values in SALE PRICE which is target variable
 df["SALE PRICE"] = df["SALE PRICE"].apply(lambda x: np.NAN if x <= 0 or "" else x)
 df.dropna(subset=["SALE PRICE"], inplace=True)
@@ -160,11 +163,35 @@ df.drop("APARTMENT NUMBER", axis=1, inplace=True)
 # Remove rows with missing values in TAX CLASS AT PRESENT and BUILDING CLASS AT PRESENT
 df.dropna(subset=["TAX CLASS AT PRESENT", "BUILDING CLASS AT PRESENT"], inplace=True)
 
+# Do k-means clustering to remove outliers from all numeric features
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+def kmeans_remove_outliers(df, n_clusters=5, random_state=0):
+    # Standardize selected features
+    scaler = StandardScaler()
+    standardized_features = scaler.fit_transform(df)
+    # Perform k-means clustering
+    kmeans = KMeans(n_clusters=n_clusters, random_state=random_state).fit(standardized_features)
+    # Calculate distances of each data point from the cluster centers
+    distances = kmeans.transform(standardized_features)
+    # Find closest cluster for each data point
+    closest_cluster_distances = np.min(distances, axis=1)
+    # Determine the threshold value for outliers
+    threshold_distance = np.mean(closest_cluster_distances) + 3 * np.std(closest_cluster_distances)
+    # Flag the outliers
+    outliers = closest_cluster_distances > threshold_distance
+    # Remove the outliers
+    df = df[~outliers]
+    # Change SALE PRICE to categorical variable
+    df["SALE PRICE"] = pd.qcut(df["SALE PRICE"], q=4, labels=SALE_PRICE_LABELS)
+    return df
+
+
 df["SALE PRICE"].describe()
 
 # change SALE PRICE to categorical variable
-SALE_PRICE_LABELS = ["Low", "Medium", "High", "Very High"]
-df["SALE PRICE"] = pd.qcut(df["SALE PRICE"], q=4, labels=SALE_PRICE_LABELS)
+# SALE_PRICE_LABELS = ["Low", "Medium", "High", "Very High"]
+# df["SALE PRICE"] = pd.qcut(df["SALE PRICE"], q=4, labels=SALE_PRICE_LABELS)
 
 df.info()
 
@@ -199,10 +226,12 @@ df_no_impute = df.copy()
 # Impute using median
 df_median_impute['LAND SQUARE FEET'] = df_median_impute['LAND SQUARE FEET'].fillna(df_median_impute['LAND SQUARE FEET'].median())
 df_median_impute['GROSS SQUARE FEET'] = df_median_impute['GROSS SQUARE FEET'].fillna(df_median_impute['GROSS SQUARE FEET'].median())
+df_median_impute = kmeans_remove_outliers(df_median_impute)
 
 # Impute using mean
 df_mean_inpute['LAND SQUARE FEET'] = df_mean_inpute['LAND SQUARE FEET'].fillna(df_mean_inpute['LAND SQUARE FEET'].mean())
 df_mean_inpute['GROSS SQUARE FEET'] = df_mean_inpute['GROSS SQUARE FEET'].fillna(df_mean_inpute['GROSS SQUARE FEET'].mean())
+df_mean_inpute = kmeans_remove_outliers(df_mean_inpute)
 
 # Impute using KNN
 from sklearn.impute import KNNImputer
@@ -210,9 +239,11 @@ from sklearn.impute import KNNImputer
 imputer = KNNImputer(n_neighbors=5)
 df_knn_impute['LAND SQUARE FEET'] = imputer.fit_transform(df_knn_impute[['LAND SQUARE FEET']])
 df_knn_impute['GROSS SQUARE FEET'] = imputer.fit_transform(df_knn_impute[['GROSS SQUARE FEET']])
+df_knn_impute = kmeans_remove_outliers(df_knn_impute)
 
 # Delete rows with missing values fir df_no_impute
 df_no_impute.dropna(inplace=True)
+df_no_impute = kmeans_remove_outliers(df_no_impute)
 
 # %%
 # Showing missing values after cleanup
