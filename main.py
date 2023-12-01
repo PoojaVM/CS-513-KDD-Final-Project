@@ -91,27 +91,27 @@ df.dtypes
 
 # %%
 # # Plot histogram for numerical data
-# for column in df.columns:
-#     # Check if the column is numeric
-#     if pd.api.types.is_numeric_dtype(df[column]):
-#         # Plot a histogram for numeric data
-#         plt.figure(figsize=(8, 4))
-#         sns.histplot(df[column], kde=True)
-#         plt.title(f'Histogram of {column}')
-#         plt.xlabel(column)
-#         plt.ylabel('Frequency')
-#         plt.show()
+for column in df.columns:
+    # Check if the column is numeric
+    if pd.api.types.is_numeric_dtype(df[column]):
+        # Plot a histogram for numeric data
+        plt.figure(figsize=(8, 4))
+        sns.histplot(df[column], kde=True)
+        plt.title(f"Histogram of {column}")
+        plt.xlabel(column)
+        plt.ylabel("Frequency")
+        plt.show()
 
-#     # Check if the column is categorical
-#     elif pd.api.types.is_categorical_dtype(df[column]):
-#         # Plot a countplot for categorical data
-#         plt.figure(figsize=(8, 4))
-#         sns.countplot(x=column, data=df)
-#         plt.title(f'Countplot of {column}')
-#         plt.xlabel(column)
-#         plt.ylabel('Count')
-#         plt.xticks(rotation=45)
-#         plt.show()
+    # # Check if the column is categorical
+    # elif pd.api.types.is_categorical_dtype(df[column]):
+    #     # Plot a countplot for categorical data
+    #     plt.figure(figsize=(8, 4))
+    #     sns.countplot(x=column, data=df)
+    #     plt.title(f'Countplot of {column}')
+    #     plt.xlabel(column)
+    #     plt.ylabel('Count')
+    #     plt.xticks(rotation=45)
+    #     plt.show()
 
 # %%
 # Missing data - understand percentage of missing data
