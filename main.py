@@ -68,15 +68,15 @@ df.head()
 # %%
 # Remove rows where commercial units and residential units do not add up to total uints
 print(
-    "Rows with total units == commercial units + residential units:",
-    df[df["TOTAL UNITS"] == df["COMMERCIAL UNITS"] + df["RESIDENTIAL UNITS"]].shape[0],
+    "Rows with total units != commercial units + residential units:",
+    df[df["TOTAL UNITS"] != df["COMMERCIAL UNITS"] + df["RESIDENTIAL UNITS"]].shape[0],
 )
 
 df = df[df["TOTAL UNITS"] == (df["COMMERCIAL UNITS"] + df["RESIDENTIAL UNITS"])]
 
 print(
-    "Rows with total units == commercial units + residential units after removing:",
-    df[df["TOTAL UNITS"] == df["COMMERCIAL UNITS"] + df["RESIDENTIAL UNITS"]].shape[0],
+    "Rows with total units != commercial units + residential units after removing:",
+    df[df["TOTAL UNITS"] != df["COMMERCIAL UNITS"] + df["RESIDENTIAL UNITS"]].shape[0],
 )
 
 print("\n")
@@ -186,57 +186,18 @@ df.drop("APARTMENT NUMBER", axis=1, inplace=True)
 # Remove rows with missing values in TAX CLASS AT PRESENT and BUILDING CLASS AT PRESENT
 df.dropna(subset=["TAX CLASS AT PRESENT", "BUILDING CLASS AT PRESENT"], inplace=True)
 
-
-def find_optimal_clusters(standardized_features, df_name, max_k=10):
-    """
-    Apply the elbow method to find the optimal number of clusters.
-    """
-    inertia = []
-    for k in range(2, max_k + 1):
-        kmeans = KMeans(n_clusters=k, random_state=42).fit(standardized_features)
-        inertia.append(kmeans.inertia_)
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(range(2, max_k + 1), inertia, marker="o")
-    plt.xlabel("Number of Clusters")
-    plt.ylabel("Inertia")
-    plt.title(f"Elbow Method for {df_name}")
-    plt.show()
-
-    # Calculate the differences between consecutive inertias
-    deltas = np.diff(inertia)
-    ddeltas = np.diff(deltas)
-    elbow_point = np.argmin(ddeltas) + 2
-
-    return elbow_point
-
-
-def kmeans_remove_outliers(df, df_name):
-    scaler = StandardScaler()
-    standardized_features = scaler.fit_transform(df)
-
-    optimal_k = find_optimal_clusters(standardized_features, df_name)
-    kmeans = KMeans(n_clusters=optimal_k, random_state=42).fit(standardized_features)
-    distances = kmeans.transform(standardized_features)
-    closest_cluster_distances = np.min(distances, axis=1)
-    threshold_distance = np.mean(closest_cluster_distances) + 3 * np.std(
-        closest_cluster_distances
-    )
-    df = df[closest_cluster_distances > threshold_distance]
-
-    # Finally, change SALE PRICE to categorical variable
-    df["SALE PRICE"] = pd.qcut(df["SALE PRICE"], q=4, labels=SALE_PRICE_LABELS)
-    return df
-
+# Convert SALE PRICE to categorical variable
+df["SALE PRICE"] = pd.qcut(df["SALE PRICE"], q=4, labels=SALE_PRICE_LABELS)
 
 df.info()
 
 # %%
+print("Initial DF Shape: ", df.shape)
 # Create duplicate df for imputation
-df_median_impute = df.copy()
-df_mean_inpute = df.copy()
-df_knn_impute = df.copy()
-df_no_impute = df.copy()
+df_median_impute = df.copy(deep=True)
+df_mean_inpute = df.copy(deep=True)
+df_knn_impute = df.copy(deep=True)
+df_no_impute = df.copy(deep=True)
 
 # Impute the missing values in LAND SQUARE FEET and GROSS SQUARE FEET using different methods
 
@@ -246,8 +207,7 @@ df_median_impute['GROSS SQUARE FEET'] = df_median_impute['GROSS SQUARE FEET'].fi
 # # do log1p transformation to make the data more normally distributed
 # df_median_impute['LAND SQUARE FEET'] = np.log1p(df_median_impute['LAND SQUARE FEET'])
 # df_median_impute['GROSS SQUARE FEET'] = np.log1p(df_median_impute['GROSS SQUARE FEET'])
-
-df_median_impute = kmeans_remove_outliers(df_median_impute, "Median Impute")
+print("DF Median Impute Shape: ", df_median_impute.shape)
 
 # Impute using mean
 df_mean_inpute['LAND SQUARE FEET'] = df_mean_inpute['LAND SQUARE FEET'].fillna(df_mean_inpute['LAND SQUARE FEET'].mean())
@@ -255,7 +215,7 @@ df_mean_inpute['GROSS SQUARE FEET'] = df_mean_inpute['GROSS SQUARE FEET'].fillna
 # # do log1p transformation to make the data more normally distributed
 # df_mean_inpute['LAND SQUARE FEET'] = np.log1p(df_mean_inpute['LAND SQUARE FEET'])
 # df_mean_inpute['GROSS SQUARE FEET'] = np.log1p(df_mean_inpute['GROSS SQUARE FEET'])
-df_mean_inpute = kmeans_remove_outliers(df_mean_inpute, "Mean Impute")
+print("DF Mean Impute Shape: ", df_mean_inpute.shape)
 
 # Impute using KNNImputer
 imputer = KNNImputer(n_neighbors=5)
@@ -264,14 +224,14 @@ df_knn_impute['GROSS SQUARE FEET'] = imputer.fit_transform(df_knn_impute[['GROSS
 # # do log1p transformation to make the data more normally distributed
 # df_knn_impute['LAND SQUARE FEET'] = np.log1p(df_knn_impute['LAND SQUARE FEET'])
 # df_knn_impute['GROSS SQUARE FEET'] = np.log1p(df_knn_impute['GROSS SQUARE FEET'])
-df_knn_impute = kmeans_remove_outliers(df_knn_impute, "KNN Impute")
+print("DF KNN Impute Shape: ", df_knn_impute.shape)
 
 # Delete rows with missing values fir df_no_impute
 df_no_impute.dropna(inplace=True)
 # # do log1p transformation to make the data more normally distributed
 # df_no_impute['LAND SQUARE FEET'] = np.log1p(df_no_impute['LAND SQUARE FEET'])
 # df_no_impute['GROSS SQUARE FEET'] = np.log1p(df_no_impute['GROSS SQUARE FEET'])
-df_no_impute = kmeans_remove_outliers(df_no_impute, "No Impute")
+print("DF No Impute Shape: ", df_no_impute.shape)
 
 # %%
 # Showing missing values after cleanup
@@ -286,14 +246,7 @@ show_missing_values(df_knn_impute)
 def plot_confusion_matrix(cm, title):
     print(title)
     print(cm)
-    ax = plt.subplot()
-    sns.heatmap(cm, annot=True, fmt="g", ax=ax)
-
-    ax.set_xlabel("Predicted labels")
-    ax.set_ylabel("True labels")
-    ax.set_title(title)
-    ax.xaxis.set_ticklabels(SALE_PRICE_LABELS)
-    ax.yaxis.set_ticklabels(SALE_PRICE_LABELS)
+    print("\n")
 
 
 def get_predictions(model, attr_train, attr_test, target_train, target_test):
@@ -580,5 +533,22 @@ elif max_accuracy_model == 'ann':
     use_sequential_dense_modal(df_map[max_accuracy_df])
 else:
     train_and_test_model(max_accuracy_model, df_map[max_accuracy_df])
+
+# %%
+# Get the model with highest accuracy
+lowest_accuracy = 100
+lowest_accuracy_model = None
+lowest_accuracy_df = None
+
+for df_key in accuracy_map.keys():
+    for model in accuracy_map[df_key].keys():
+        if accuracy_map[df_key][model] < lowest_accuracy:
+            lowest_accuracy = accuracy_map[df_key][model]
+            lowest_accuracy_model = model
+            lowest_accuracy_df = df_key
+
+print("Lowest accuracy:", lowest_accuracy)
+print("Lowest accuracy model:", lowest_accuracy_model)
+print("Lowest accuracy df:", lowest_accuracy_df)
 
 
