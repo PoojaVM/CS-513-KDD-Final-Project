@@ -1,6 +1,15 @@
 # %% [markdown]
-# ### Course - CS-513 Knowledge Discovery and Data Mining
-# #### Problem Statement - Predict the prices of real estate in New York City using the dataset from Kaggle
+# # Course - CS-513 Knowledge Discovery and Data Mining
+
+# %% [markdown]
+# #### Problem Statement - User friendly guide to predict if a house in NYC would fall in a specific price range(L, M, H, VH)
+# 
+# #### Project Group 6
+# 
+# #### Team Members:
+# - Akhil Vandanapu (20016200)
+# - Anirudh Chintha (20016080)
+# - Pooja Mule (20016077)
 
 # %%
 # Import required libraries
@@ -535,7 +544,7 @@ else:
     train_and_test_model(max_accuracy_model, df_map[max_accuracy_df])
 
 # %%
-# Get the model with highest accuracy
+# Get the model with lowest accuracy
 lowest_accuracy = 100
 lowest_accuracy_model = None
 lowest_accuracy_df = None
