@@ -2,7 +2,7 @@
 ## Final Project - Predicting Prices for Real Estate in New York City
 
 ### Team Members:
-- Pooja Vaijanath Mule - 20016077
+- Pooja Vaijanath Mule
 - Seshasai Anirudh Chintha
 - Akhil Vandanapu
 
